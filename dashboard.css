@@ -293,5 +293,54 @@ body {
     color: #9ca3af; /* 灰色 */
     cursor: not-allowed; /* 显示“不可点击”的鼠标指针 */
 }
+/* --- 从这里开始粘贴 --- */
 
+/* 可点击标题的样式 */
+.history-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    margin-top: 30px;
+    padding: 10px;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    user-select: none; /* 防止选中文本 */
+    transition: background-color 0.2s;
+}
+
+.history-toggle:hover {
+    background-color: #f3f4f6;
+}
+
+.history-toggle h3 {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+/* 小箭头的样式 */
+.toggle-icon {
+    font-size: 0.8em;
+    transition: transform 0.3s ease-in-out;
+}
+
+/* 当列表收起时，旋转小箭头 */
+.toggle-icon.collapsed {
+    transform: rotate(-90deg);
+}
+
+/* 可折叠列表的样式 */
+.collapsible {
+    overflow: hidden; /* 隐藏超出部分 */
+    transition: max-height 0.4s ease-in-out, opacity 0.3s;
+    max-height: 1000px; /* 一个足够大的高度，表示展开状态 */
+    opacity: 1;
+}
+
+/* 当列表收起时的样式 */
+.collapsible.collapsed {
+    max-height: 0; /* 高度变为0，实现收起动画 */
+    opacity: 0;
+    margin-bottom: 0; /* 收起时移除外边距 */
+}
 
