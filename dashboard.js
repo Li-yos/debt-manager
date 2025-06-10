@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addItemForm = document.getElementById('add-item-form');
     const repayBtn = document.getElementById('repay-btn');
     const spinnerOverlay = document.getElementById('spinner-overlay');
+	const paymentsHistoryTitle = document.getElementById('payments-history-title');
+    const paymentsHistoryList = document.getElementById('payments-history-list');
     
     let selectedDebtorId = null;
 
@@ -162,6 +164,7 @@ async function handleDeleteDebtor(debtorId) {
         addItemForm.classList.remove('hidden');
         currentDebtorName.textContent = `欠款人: ${debtorName}`;
         fetchAndRenderItems(selectedDebtorId);
+		fetchAndRenderPayments(selectedDebtorId);
     }
 
     // 统一的欠款人列表点击处理器
@@ -218,7 +221,45 @@ debtorsList.addEventListener('click', (event) => {
         }
     }
     repayBtn.addEventListener('click', handleRepay);
+//获取还款历史
+async function fetchAndRenderPayments(debtorId) {
+    // 我们需要一个新的 API 端点来获取还款历史
+    // 为了快速实现，我们暂时复用现有 API，但在真实应用中应该创建一个新的
+    try {
+        // 这个 API 我们还没创建，但先写好前端逻辑
+        const response = await apiFetch(`/payments?debtorId=${debtorId}`); // 假设有这样一个API
+        if (!response.ok) { // 如果 API 不存在或出错，就静默处理
+            paymentsHistoryTitle.classList.add('hidden');
+            paymentsHistoryList.innerHTML = '';
+            return;
+        }
 
+        const payments = await response.json();
+        
+        paymentsHistoryList.innerHTML = '';
+        if (payments.length > 0) {
+            paymentsHistoryTitle.classList.remove('hidden');
+            payments.forEach(payment => {
+                const li = document.createElement('li');
+                li.style.backgroundColor = '#f0fdf4'; // 用绿色背景表示还款
+                li.innerHTML = `
+                    <div class="item-main">
+                        <div>还款 <strong>¥${payment.amount.toFixed(2)}</strong></div>
+                        <div class="item-meta">日期: ${new Date(payment.payment_date).toLocaleDateString()}</div>
+                    </div>
+                `;
+                paymentsHistoryList.appendChild(li);
+            });
+        } else {
+            paymentsHistoryTitle.classList.add('hidden');
+        }
+
+    } catch (error) {
+        console.error('Failed to fetch payments history:', error);
+        paymentsHistoryTitle.classList.add('hidden');
+        paymentsHistoryList.innerHTML = '';
+    }
+}
 
     // 添加新欠款人
     addDebtorForm.addEventListener('submit', async (e) => {
