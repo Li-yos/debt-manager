@@ -1,4 +1,5 @@
 // 这是我们应用的核心，处理所有 dashboard 页面的交互逻辑
+// v2: 集成了加载动画和编辑欠款人功能
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- 全局变量和元素获取 ---
@@ -20,15 +21,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const debtItemsList = document.getElementById('debt-items-list');
     const addItemForm = document.getElementById('add-item-form');
     
+    // 加载动画元素
+    const spinnerOverlay = document.getElementById('spinner-overlay');
+    
     // 用于存储当前选择的欠款人ID
     let selectedDebtorId = null;
 
     // --- 核心函数 ---
 
+    // 显示/隐藏加载动画的辅助函数
+    function showSpinner() {
+        spinnerOverlay.classList.remove('hidden');
+    }
+    function hideSpinner() {
+        spinnerOverlay.classList.add('hidden');
+    }
+
     // 检查用户是否登录
     function checkAuth() {
         if (!token) {
-            window.location.href = 'index.html'; // 如果没有 token，直接踢回登录页
+            window.location.href = 'index.html';
         } else {
             welcomeMessage.textContent = `欢迎, ${currentUser.username}!`;
         }
@@ -50,8 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
         options.headers = { ...defaultHeaders, ...options.headers };
 
         const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-        if (response.status === 401) { // 如果 token 过期或无效
-            logout();
+        if (response.status === 401) {
+            logout(); // 如果 token 失效，自动退出登录
             return;
         }
         return response;
@@ -59,20 +71,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 获取并渲染欠款人列表
     async function fetchAndRenderDebtors() {
+        showSpinner();
         try {
             const response = await apiFetch('/debtors');
             const debtors = await response.json();
             
-            debtorsList.innerHTML = ''; // 清空旧列表
+            debtorsList.innerHTML = '';
             debtors.forEach(debtor => {
                 const li = document.createElement('li');
                 li.dataset.debtorId = debtor.id;
-                li.dataset.debtorName = debtor.name;
+                
+                // 【修改点】添加了编辑按钮和新的 class
                 li.innerHTML = `
-                    <span>${debtor.name}</span>
-                    <span class="debtor-amount">¥${debtor.total_unpaid_amount.toFixed(2)}</span>
+                    <span class="debtor-name-text">${debtor.name}</span>
+                    <div class="debtor-actions">
+                        <span class="debtor-amount">¥${debtor.total_unpaid_amount.toFixed(2)}</span>
+                        <button class="btn btn-tiny btn-edit" title="编辑名称" data-debtor-id="${debtor.id}" data-debtor-name="${debtor.name}">✏️</button>
+                    </div>
                 `;
-                // 如果是当前选中的 debtor，添加 active 样式
                 if (debtor.id === selectedDebtorId) {
                     li.classList.add('active');
                 }
@@ -80,16 +96,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error('Failed to fetch debtors:', error);
+        } finally {
+            hideSpinner();
         }
     }
     
     // 获取并渲染指定欠款人的账目明细
     async function fetchAndRenderItems(debtorId) {
+        showSpinner();
         try {
             const response = await apiFetch(`/debt-items?debtorId=${debtorId}`);
             const items = await response.json();
             
-            debtItemsList.innerHTML = ''; // 清空旧列表
+            debtItemsList.innerHTML = '';
             let unpaidTotal = 0;
             
             if (items.length === 0) {
@@ -120,23 +139,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } catch(error) {
             console.error('Failed to fetch debt items:', error);
+        } finally {
+            hideSpinner();
         }
     }
     
     // 处理选择欠款人的逻辑
-    function handleSelectDebtor(event) {
-        const li = event.target.closest('li');
-        if (!li) return;
+    function handleSelectDebtor(liElement) {
+        if (!liElement) return;
 
-        // 移除其他 li 的 active 样式
         document.querySelectorAll('#debtors-list li').forEach(el => el.classList.remove('active'));
-        // 为当前点击的 li 添加 active 样式
-        li.classList.add('active');
+        liElement.classList.add('active');
         
-        selectedDebtorId = li.dataset.debtorId;
-        const debtorName = li.dataset.debtorName;
+        selectedDebtorId = liElement.dataset.debtorId;
+        const debtorName = liElement.querySelector('.debtor-name-text').textContent;
 
-        // 显示明细面板，隐藏欢迎面板
         detailsView.style.display = 'block';
         welcomeView.style.display = 'none';
         addItemForm.classList.remove('hidden');
@@ -144,110 +161,152 @@ document.addEventListener('DOMContentLoaded', () => {
         currentDebtorName.textContent = `欠款人: ${debtorName}`;
         fetchAndRenderItems(selectedDebtorId);
     }
+    
+    // 【新增】处理编辑欠款人名称的函数
+    async function editDebtor(debtorId, newName, contactInfo = null) {
+        showSpinner();
+        try {
+            const response = await apiFetch(`/debtors/${debtorId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ name: newName, contact_info: contactInfo })
+            });
+            if (response.ok) {
+                await fetchAndRenderDebtors();
+                if (selectedDebtorId === debtorId) {
+                    currentDebtorName.textContent = `欠款人: ${newName}`;
+                }
+            } else {
+                const err = await response.json();
+                alert(`编辑失败: ${err.error}`);
+            }
+        } catch(error) {
+            console.error('Failed to edit debtor:', error);
+        } finally {
+            hideSpinner();
+        }
+    }
+
 
     // --- 事件监听器绑定 ---
 
-    // 退出登录按钮
     logoutBtn.addEventListener('click', logout);
 
-    // 欠款人列表点击事件 (事件委托)
-    debtorsList.addEventListener('click', handleSelectDebtor);
+    // 【修改点】欠款人列表的点击事件，现在可以区分点击的是名称还是编辑按钮
+    debtorsList.addEventListener('click', (event) => {
+        const target = event.target;
+        const editButton = target.closest('.btn-edit');
+        
+        if (editButton) {
+            event.stopPropagation();
+            const debtorId = editButton.dataset.debtorId;
+            const currentName = editButton.dataset.debtorName;
+            const newName = prompt('请输入新的欠款人姓名:', currentName);
+            
+            if (newName && newName.trim() !== '' && newName.trim() !== currentName) {
+                editDebtor(debtorId, newName.trim());
+            }
+            return;
+        }
 
-    // 添加新欠款人表单
+        const li = target.closest('li');
+        if (li) {
+            handleSelectDebtor(li);
+        }
+    });
+
     addDebtorForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = newDebtorNameInput.value.trim();
         if (!name) return;
-
+        showSpinner();
         try {
             const response = await apiFetch('/debtors', {
                 method: 'POST',
                 body: JSON.stringify({ name })
             });
             if (response.ok) {
-                newDebtorNameInput.value = ''; // 清空输入框
-                await fetchAndRenderDebtors(); // 重新加载列表
+                newDebtorNameInput.value = '';
+                await fetchAndRenderDebtors();
             } else {
                 const err = await response.json();
                 alert(`添加失败: ${err.error}`);
             }
         } catch (error) {
             console.error('Failed to add debtor:', error);
+        } finally {
+            hideSpinner();
         }
     });
     
-    // 添加新账目表单
     addItemForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!selectedDebtorId) {
             alert('请先选择一个欠款人！');
             return;
         }
-
         const itemData = {
             debtorId: selectedDebtorId,
             description: document.getElementById('item-description').value,
             unit_price: parseFloat(document.getElementById('item-price').value),
             quantity: parseInt(document.getElementById('item-quantity').value) || 1,
-            // 将 YYYY-MM-DD 格式的日期转换为 Unix 时间戳 (毫秒)
             transaction_date: new Date(document.getElementById('item-date').value).getTime()
         };
-
+        showSpinner();
         try {
             const response = await apiFetch('/debt-items', {
                 method: 'POST',
                 body: JSON.stringify(itemData)
             });
             if (response.ok) {
-                addItemForm.reset(); // 清空表单
-                await fetchAndRenderItems(selectedDebtorId); // 刷新明细列表
-                await fetchAndRenderDebtors(); // 刷新总额
+                addItemForm.reset();
+                await fetchAndRenderItems(selectedDebtorId);
+                await fetchAndRenderDebtors();
             } else {
                 const err = await response.json();
                 alert(`添加账目失败: ${err.error}`);
             }
         } catch (error) {
             console.error('Failed to add item:', error);
+        } finally {
+            hideSpinner();
         }
     });
 
-    // 账目明细列表的点击事件 (用于处理“标记为已还”和“删除”按钮)
     debtItemsList.addEventListener('click', async (e) => {
         const target = e.target;
         const itemId = target.dataset.itemId;
         if (!itemId) return;
-
-        // 如果点击的是“标记为已还”按钮
-        if (target.classList.contains('btn-success')) {
-            try {
+        
+        showSpinner(); // 开始操作前显示加载
+        try {
+            if (target.classList.contains('btn-success')) {
                 const response = await apiFetch(`/debt-items/${itemId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ status: 'paid' })
                 });
                 if (response.ok) {
-                    await fetchAndRenderItems(selectedDebtorId); // 刷新明细列表
-                    await fetchAndRenderDebtors(); // 刷新总额
+                    await fetchAndRenderItems(selectedDebtorId);
+                    await fetchAndRenderDebtors();
                 }
-            } catch (error) {
-                console.error('Failed to update item status:', error);
             }
-        }
-
-        // 如果点击的是“删除”按钮
-        if (target.classList.contains('btn-danger')) {
-            if (confirm('确定要删除这条记录吗？')) {
-                try {
+    
+            if (target.classList.contains('btn-danger')) {
+                if (confirm('确定要删除这条记录吗？')) {
                     const response = await apiFetch(`/debt-items/${itemId}`, {
                         method: 'DELETE'
                     });
                     if (response.ok) {
-                        await fetchAndRenderItems(selectedDebtorId); // 刷新明细列表
-                        await fetchAndRenderDebtors(); // 刷新总额
+                        await fetchAndRenderItems(selectedDebtorId);
+                        await fetchAndRenderDebtors();
                     }
-                } catch (error) {
-                    console.error('Failed to delete item:', error);
                 }
             }
+        } catch (error) {
+            console.error('Failed to process item action:', error);
+        } finally {
+            // 如果用户点了删除但又点了取消，也需要隐藏加载动画
+            // 但为简化，我们统一在最后隐藏
+            hideSpinner();
         }
     });
 
@@ -255,8 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function init() {
         checkAuth();
         fetchAndRenderDebtors();
-        detailsView.style.display = 'none'; // 初始隐藏明细面板
-        welcomeView.style.display = 'block';// 初始显示欢迎面板
+        detailsView.style.display = 'none';
+        welcomeView.style.display = 'block';
     }
 
     init();
