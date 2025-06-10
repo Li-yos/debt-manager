@@ -1,3 +1,5 @@
+// 这个文件负责处理所有的还款操作 (GET 获取历史, POST 创建还款)
+
 async function handleGet(context) {
     const { request, env, data } = context;
     const { userId } = data;
@@ -24,19 +26,21 @@ async function handlePost(context) {
         return new Response(JSON.stringify({ error: 'debtorId, a positive amount, and payment_date are required.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // --- 【核心修复点】 ---
+    // 将错误的 HAVING 子句修改为正确的 WHERE 子句
     const unpaidItemsQuery = `
         SELECT 
             di.id,
             di.total_amount,
             COALESCE((SELECT SUM(pa.amount_allocated) FROM payment_allocations pa WHERE pa.debt_item_id = di.id), 0) as amount_paid
         FROM debt_items di
-        WHERE di.debtor_id = ?
-        HAVING (di.total_amount - amount_paid) > 0.001
-        ORDER BY di.transaction_date ASC;
+        WHERE 
+            di.debtor_id = ? AND
+            (di.total_amount - COALESCE((SELECT SUM(pa.amount_allocated) FROM payment_allocations pa WHERE pa.debt_item_id = di.id), 0)) > 0.001
+        ORDER BY 
+            di.transaction_date ASC;
     `;
     
-    // --- 【核心修复点】 ---
-    // 用更安全的方式处理可能为 null 的查询结果
     const unpaidItemsResult = await env.DB.prepare(unpaidItemsQuery).bind(debtorId).all();
     const unpaidItems = unpaidItemsResult && unpaidItemsResult.results ? unpaidItemsResult.results : [];
     
