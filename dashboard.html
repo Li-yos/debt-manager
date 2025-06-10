@@ -35,19 +35,24 @@
         <!-- 右侧：欠款明细 -->
         <section class="details-panel">
             <div id="details-view">
-                <h2 id="current-debtor-name">选择一个欠款人查看明细</h2>
-                <p id="total-unpaid-amount" class="total-amount"></p>
-                <ul id="debt-items-list" class="debt-items-list">
-                    <!-- 欠款明细将通过 JS 动态插入到这里 -->
-                </ul>
-                <form id="add-item-form" class="add-form hidden">
-                    <h3>添加新账目</h3>
-                    <input type="date" id="item-date" required>
-                    <input type="text" id="item-description" placeholder="账目描述" required>
-                    <input type="number" id="item-price" placeholder="单价" step="0.01" required>
-                    <input type="number" id="item-quantity" placeholder="数量 (默认1)" step="1" min="1">
-                    <button type="submit" class="btn">添加账目</button>
-                </form>
+<!-- 从这里开始替换 -->
+<h2 id="current-debtor-name">选择一个欠款人查看明细</h2>
+<div class="debtor-summary">
+    <p id="total-unpaid-amount" class="total-amount"></p>
+    <button id="repay-btn" class="btn btn-success hidden">记录一笔还款</button>
+</div>
+<ul id="debt-items-list" class="debt-items-list">
+    <!-- 欠款明细将通过 JS 动态插入到这里 -->
+</ul>
+<form id="add-item-form" class="add-form hidden">
+    <h3>添加新账目</h3>
+    <input type="date" id="item-date" required>
+    <input type="text" id="item-description" placeholder="账目描述" required>
+    <input type="number" id="item-price" placeholder="单价" step="0.01" required>
+    <input type="number" id="item-quantity" placeholder="数量 (默认1)" step="1" min="1">
+    <button type="submit" class="btn">添加账目</button>
+</form>
+<!-- 结束替换 -->
             </div>
             <div id="welcome-view" class="welcome-view">
                 <p>欢迎使用！从左侧选择或添加一个欠款人开始记账。</p>
