@@ -1,0 +1,195 @@
+/* 通用布局 */
+body {
+    display: block; /* 覆盖 style.css 的 flex 布局 */
+    height: auto;
+    background-color: #f9fafb;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 头部 Header */
+.header {
+    background-color: #fff;
+    padding: 15px 0;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#welcome-message {
+    color: #374151;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* 主内容区 */
+.main-content {
+    display: flex;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+/* 侧边栏 (欠款人列表) */
+.sidebar {
+    width: 30%;
+    min-width: 250px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    align-self: flex-start; /* 让侧边栏高度自适应 */
+}
+
+.debtors-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+}
+
+.debtors-list li {
+    padding: 15px;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.debtors-list li:hover, .debtors-list li.active {
+    background-color: #eef2ff;
+    color: #4f46e5;
+    font-weight: bold;
+}
+
+.debtor-amount {
+    font-size: 0.9em;
+    color: #d9534f;
+    font-weight: bold;
+}
+
+.add-form {
+    display: flex;
+    gap: 10px;
+}
+.add-form input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.add-form button {
+    width: auto;
+    padding: 0 15px;
+}
+
+/* 右侧明细面板 */
+.details-panel {
+    flex-grow: 1;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.welcome-view {
+    text-align: center;
+    color: #6b7280;
+    padding: 50px 0;
+}
+
+.total-amount {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #1f2937;
+    margin-bottom: 20px;
+}
+
+.debt-items-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 30px;
+}
+
+.debt-items-list li {
+    background-color: #f9fafb;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.debt-items-list li.paid {
+    background-color: #f0fdf4;
+    text-decoration: line-through;
+    color: #6b7280;
+}
+
+.item-main {
+    flex-grow: 1;
+}
+
+.item-meta {
+    font-size: 0.8em;
+    color: #6b7280;
+}
+
+.item-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+.btn-success { background-color: #16a34a; }
+.btn-success:hover { background-color: #15803d; }
+.btn-danger { background-color: #dc2626; }
+.btn-danger:hover { background-color: #b91c1c; }
+
+
+#add-item-form {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 20px;
+    flex-direction: column;
+}
+
+#add-item-form h3 {
+    margin-top: 0;
+}
+#add-item-form input {
+    margin-bottom: 10px;
+}
