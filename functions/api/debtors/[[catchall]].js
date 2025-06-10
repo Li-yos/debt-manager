@@ -45,30 +45,9 @@ async function handleDelete(context) {
     const { request, env, data, params } = context;
     const { userId } = data;
     const debtorId = params.catchall[0];
-    if (!debtorId) return new Response(JSON.stringify({ error: 'Debtor ID is missing' }), { status: 400 });
-
-    // --- 新增的安全检查 ---
-    // 1. 计算该欠款人的未还款总额
-    const unpaidQuery = `
-        SELECT (COALESCE(SUM(di.total_amount), 0) - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.debtor_id = ?), 0)) AS total_unpaid_amount
-        FROM debt_items di
-        WHERE di.debtor_id = ?;
-    `;
-    const unpaidResult = await env.DB.prepare(unpaidQuery).bind(debtorId, debtorId).first();
-    const totalUnpaid = unpaidResult.total_unpaid_amount;
-
-    if (totalUnpaid > 0.01) { // 使用容差
-        return new Response(JSON.stringify({ error: `Cannot delete debtor with an outstanding balance of ¥${totalUnpaid.toFixed(2)}.` }), { status: 400 });
-    }
-    // --- 结束新增检查 ---
-
-    // 只有在欠款已还清的情况下，才执行删除
     const deleteDebtorQuery = 'DELETE FROM debtors WHERE id = ? AND user_id = ?';
     const { meta } = await env.DB.prepare(deleteDebtorQuery).bind(debtorId, userId).run();
-
-    if (meta.changes === 0) {
-        return new Response(JSON.stringify({ error: 'Debtor not found or you do not have permission to delete it.' }), { status: 404 });
-    }
+    if (meta.changes === 0) return new Response(JSON.stringify({ error: 'Debtor not found or no permission' }), { status: 404 });
     return new Response(null, { status: 204 });
 }
 
