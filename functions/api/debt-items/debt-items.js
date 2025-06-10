@@ -31,9 +31,11 @@ async function handlePost({ request, env, data }) {
     return new Response(JSON.stringify(newItem), { status: 201 });
 }
 
-async function handlePut({ request, env, data }) {
+async function handlePut(context) {
+    const { request, env, data, params } = context;
     const { userId } = data;
-    const itemId = new URL(request.url).pathname.split('/').pop();
+    // --- 修改点在这里 ---
+    const itemId = params.catchall ? params.catchall[0] : null;
     if (!itemId) return new Response(JSON.stringify({ error: 'Item ID is missing' }), { status: 400 });
     const { status } = await request.json();
     if (status !== 'paid' && status !== 'unpaid') return new Response(JSON.stringify({ error: 'Invalid status' }), { status: 400 });
@@ -43,9 +45,11 @@ async function handlePut({ request, env, data }) {
     return new Response(JSON.stringify({ message: 'Debt item updated' }), { status: 200 });
 }
 
-async function handleDelete({ request, env, data }) {
+async function handleDelete(context) {
+    const { request, env, data, params } = context;
     const { userId } = data;
-    const itemId = new URL(request.url).pathname.split('/').pop();
+    // --- 修改点在这里 ---
+    const itemId = params.catchall ? params.catchall[0] : null;
     if (!itemId) return new Response(JSON.stringify({ error: 'Item ID is missing' }), { status: 400 });
     const deleteItemQuery = `DELETE FROM debt_items WHERE id = ? AND debtor_id IN (SELECT id FROM debtors WHERE user_id = ?);`;
     const { meta } = await env.DB.prepare(deleteItemQuery).bind(itemId, userId).run();
@@ -53,28 +57,34 @@ async function handleDelete({ request, env, data }) {
     return new Response(null, { status: 204 });
 }
 
-// --- 唯一的导出函数，我们的“前台接待员” ---
 export async function onRequest(context) {
-    // 统一为所有成功的 JSON 响应添加 header
     try {
         let response;
+        // GET 请求比较特殊，它用查询参数，而不是路径参数
+        if (context.request.method === 'GET') {
+            return await handleGet(context);
+        }
+
+        const hasId = context.params.catchall && context.params.catchall.length > 0;
+        
         switch (context.request.method) {
-            case 'GET':
-                response = await handleGet(context);
-                break;
             case 'POST':
+                if (hasId) return new Response('Method Not Allowed', { status: 405 });
                 response = await handlePost(context);
                 break;
             case 'PUT':
+                if (!hasId) return new Response('Method Not Allowed', { status: 405 });
                 response = await handlePut(context);
                 break;
             case 'DELETE':
+                if (!hasId) return new Response('Method Not Allowed', { status: 405 });
                 response = await handleDelete(context);
                 break;
             default:
                 response = new Response('Method Not Allowed', { status: 405 });
         }
-        if (response.status < 400 && response.headers.get('Content-Type') !== 'application/json') {
+        
+        if (response.status < 400 && !response.headers.has('Content-Type')) {
              response.headers.set('Content-Type', 'application/json');
         }
         return response;

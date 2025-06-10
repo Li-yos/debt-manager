@@ -1,9 +1,3 @@
-// --- 把之前的所有 onRequest... 函数粘贴到这里，但去掉 export ---
-// 比如:
-// async function onRequestGet(context) { ... } -> function handleGet(context) { ... }
-// async function onRequestPost(context) { ... } -> function handlePost(context) { ... }
-// 我们在下面直接定义它们，所以你只需要复制粘贴下面的全部内容即可。
-
 async function handleGet({ env, data }) {
     const { userId } = data;
     const getDebtorsQuery = `
@@ -32,9 +26,11 @@ async function handlePost({ request, env, data }) {
     return new Response(JSON.stringify(newDebtor), { status: 201 });
 }
 
-async function handlePut({ request, env, data }) {
+async function handlePut(context) {
+    const { request, env, data, params } = context;
     const { userId } = data;
-    const debtorId = new URL(request.url).pathname.split('/').pop();
+    // --- 修改点在这里 ---
+    const debtorId = params.catchall ? params.catchall[0] : null; 
     if (!debtorId) return new Response(JSON.stringify({ error: 'Debtor ID is missing' }), { status: 400 });
     const { name, contact_info } = await request.json();
     if (!name) return new Response(JSON.stringify({ error: 'Debtor name is required' }), { status: 400 });
@@ -45,9 +41,11 @@ async function handlePut({ request, env, data }) {
     return new Response(JSON.stringify({ message: 'Debtor updated' }), { status: 200 });
 }
 
-async function handleDelete({ request, env, data }) {
+async function handleDelete(context) {
+    const { request, env, data, params } = context;
     const { userId } = data;
-    const debtorId = new URL(request.url).pathname.split('/').pop();
+    // --- 修改点在这里 ---
+    const debtorId = params.catchall ? params.catchall[0] : null;
     if (!debtorId) return new Response(JSON.stringify({ error: 'Debtor ID is missing' }), { status: 400 });
     const deleteDebtorQuery = 'DELETE FROM debtors WHERE id = ? AND user_id = ?';
     const { meta } = await env.DB.prepare(deleteDebtorQuery).bind(debtorId, userId).run();
@@ -55,19 +53,24 @@ async function handleDelete({ request, env, data }) {
     return new Response(null, { status: 204 });
 }
 
-
-// --- 这是唯一的导出函数，我们的“前台接待员” ---
 export async function onRequest(context) {
-    // 为所有响应添加 JSON content-type 头，并处理错误
     try {
+        // 对于通配符路由，没有ID的POST请求和有ID的PUT/DELETE请求路径不同
+        // POST /api/debtors - catchall会是空数组或undefined
+        // PUT /api/debtors/123 - catchall会是['123']
+        const hasId = context.params.catchall && context.params.catchall.length > 0;
+
         switch (context.request.method) {
             case 'GET':
                 return await handleGet(context);
             case 'POST':
+                 if (hasId) return new Response('Method Not Allowed', { status: 405 });
                 return await handlePost(context);
             case 'PUT':
+                 if (!hasId) return new Response('Method Not Allowed', { status: 405 });
                 return await handlePut(context);
             case 'DELETE':
+                 if (!hasId) return new Response('Method Not Allowed', { status: 405 });
                 return await handleDelete(context);
             default:
                 return new Response('Method Not Allowed', { status: 405 });
