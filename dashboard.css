@@ -281,3 +281,17 @@ body {
     background-color: #22c55e; /* 绿色进度条 */
     transition: width 0.3s ease-in-out;
 }
+/* --- 从这里开始粘贴 --- */
+
+/* 欠款人删除按钮的特定样式 */
+.btn-delete-debtor {
+    color: #ef4444; /* 红色 */
+}
+
+/* 按钮被禁用时的样式 */
+.btn-tiny[disabled] {
+    color: #9ca3af; /* 灰色 */
+    cursor: not-allowed; /* 显示“不可点击”的鼠标指针 */
+}
+
+

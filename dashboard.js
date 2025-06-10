@@ -34,21 +34,42 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchAndRenderItems(debtorId) { /* ... 和之前一样，省略 ... */ }
 
     // --- 为了方便你复制，这里是完整的渲染函数 ---
-    async function fetchAndRenderDebtors() {
-        showSpinner();
-        try {
-            const response = await apiFetch('/debtors');
-            const debtors = await response.json();
-            debtorsList.innerHTML = '';
-            debtors.forEach(debtor => {
-                const li = document.createElement('li');
-                li.dataset.debtorId = debtor.id;
-                li.innerHTML = `<span class="debtor-name-text">${debtor.name}</span><div class="debtor-actions"><span class="debtor-amount">¥${debtor.total_unpaid_amount.toFixed(2)}</span><button class="btn btn-tiny btn-edit" title="编辑名称" data-debtor-id="${debtor.id}" data-debtor-name="${debtor.name}">✏️</button></div>`;
-                if (debtor.id === selectedDebtorId) { li.classList.add('active'); }
-                debtorsList.appendChild(li);
-            });
-        } catch (error) { console.error('Failed to fetch debtors:', error); } finally { hideSpinner(); }
-    }
+async function fetchAndRenderDebtors() {
+    showSpinner();
+    try {
+        const response = await apiFetch('/debtors');
+        const debtors = await response.json();
+        
+        debtorsList.innerHTML = '';
+        debtors.forEach(debtor => {
+            const li = document.createElement('li');
+            li.dataset.debtorId = debtor.id;
+
+            // --- 核心修改在这里 ---
+            const isDeletable = debtor.total_unpaid_amount < 0.01; // 判断是否可以删除
+
+            li.innerHTML = `
+                <span class="debtor-name-text">${debtor.name}</span>
+                <div class="debtor-actions">
+                    <span class="debtor-amount">¥${debtor.total_unpaid_amount.toFixed(2)}</span>
+                    <button class="btn btn-tiny btn-edit" title="编辑名称" data-debtor-id="${debtor.id}" data-debtor-name="${debtor.name}">✏️</button>
+                    <button 
+                        class="btn btn-tiny btn-delete-debtor" 
+                        title="${isDeletable ? '删除该欠款人' : '有欠款未还清，无法删除'}" 
+                        data-debtor-id="${debtor.id}"
+                        ${isDeletable ? '' : 'disabled'} 
+                    >🗑️</button>
+                </div>
+            `;
+            // --- 结束修改 ---
+
+            if (debtor.id === selectedDebtorId) {
+                li.classList.add('active');
+            }
+            debtorsList.appendChild(li);
+        });
+    } catch (error) { console.error('Failed to fetch debtors:', error); } finally { hideSpinner(); }
+}
     async function fetchAndRenderItems(debtorId) {
         showSpinner();
         try {
@@ -101,6 +122,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+// 新增：处理删除欠款人的函数
+async function handleDeleteDebtor(debtorId) {
+    if (confirm('确定要删除这个欠款人吗？\n注意：只有在所有欠款都还清的情况下才能删除。')) {
+        showSpinner();
+        try {
+            const response = await apiFetch(`/debtors/${debtorId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                // 如果删除的是当前选中的欠款人，需要重置右侧面板
+                if (selectedDebtorId === debtorId) {
+                    selectedDebtorId = null;
+                    detailsView.style.display = 'none';
+                    welcomeView.style.display = 'block';
+                }
+                await fetchAndRenderDebtors(); // 重新加载列表
+            } else {
+                const err = await response.json();
+                alert(`删除失败: ${err.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete debtor:', error);
+        } finally {
+            hideSpinner();
+        }
+    }
+}
+
     // 选择欠款人
     function handleSelectDebtor(liElement) {
         document.querySelectorAll('#debtors-list li').forEach(el => el.classList.remove('active'));
@@ -115,19 +165,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 统一的欠款人列表点击处理器
-    debtorsList.addEventListener('click', (event) => {
-        const target = event.target;
-        const editButton = target.closest('.btn-edit');
-        if (editButton) {
-            event.stopPropagation();
-            handleEditDebtor(editButton.dataset.debtorId, editButton.dataset.debtorName);
-            return;
-        }
-        const li = target.closest('li');
-        if (li) {
-            handleSelectDebtor(li);
-        }
-    });
+// 统一的欠款人列表点击处理器
+debtorsList.addEventListener('click', (event) => {
+    const target = event.target;
+    const editButton = target.closest('.btn-edit');
+    const deleteButton = target.closest('.btn-delete-debtor'); // <-- 新增
+
+    // 如果点击的是编辑按钮
+    if (editButton) {
+        event.stopPropagation();
+        handleEditDebtor(editButton.dataset.debtorId, editButton.dataset.debtorName);
+        return;
+    }
+
+    // 如果点击的是删除按钮 (并且它没有被禁用)
+    if (deleteButton && !deleteButton.disabled) { // <-- 新增
+        event.stopPropagation();
+        handleDeleteDebtor(deleteButton.dataset.debtorId);
+        return;
+    }
+
+    // 如果点击的是列表项的其他部分
+    const li = target.closest('li');
+    if (li) {
+        handleSelectDebtor(li);
+    }
+});
 
     // 记录一笔还款
     async function handleRepay() {
